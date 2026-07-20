@@ -288,7 +288,7 @@ if __name__ == "__main__":
     serve()
 '''
 
-INDEX_HTML = '''<!doctype html>
+INDEX_HTML = """<!doctype html>
 <meta charset="utf-8">
 <title>VPS-Arena Build</title>
 <style>
@@ -322,7 +322,36 @@ async function j(u){const r=await fetch(u);return r.json()}
   }
 })();
 </script>
-'''
+"""
+
+
+DOCKERFILE = """# Generiertes Artefakt — zero-dependency stdlib-Service.
+FROM python:3.12-slim
+WORKDIR /app
+COPY . /app
+ENV PORT=8080
+EXPOSE 8080
+CMD ["python", "run.py"]
+"""
+
+FLY_TOML = """# Fly.io-Deploy des Build-Artefakts (eine Subdomain je Build).
+app = "{app}"
+primary_region = "fra"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
+"""
 
 
 def materialize(build: Build, job: Job, out_root: str) -> Tuple[str, ArtifactManifest]:
@@ -351,6 +380,13 @@ def materialize(build: Build, job: Job, out_root: str) -> Tuple[str, ArtifactMan
     _write(art_dir, "run.py", RUN_PY)
     files.append("run.py")
 
+    # Container-/Deploy-Ziel (v0.3): zero-dep Artefakt -> winziges Image.
+    _write(art_dir, "Dockerfile", DOCKERFILE)
+    _write(art_dir, ".dockerignore", "__pycache__/\n*.pyc\n*.db*\n")
+    fly_app = "arena-" + build.id.replace(":", "-").replace("_", "-").lower()
+    _write(art_dir, "fly.toml", FLY_TOML.format(app=fly_app))
+    files.extend(["Dockerfile", ".dockerignore", "fly.toml"])
+
     manifest = ArtifactManifest(
         build_id=build.id,
         job_id=job.id,
@@ -358,7 +394,9 @@ def materialize(build: Build, job: Job, out_root: str) -> Tuple[str, ArtifactMan
         modules=list(build.modules),
         files=sorted(files),
     )
-    _write(art_dir, "manifest.json", json.dumps(manifest.model_dump(), ensure_ascii=False, indent=2))
+    _write(
+        art_dir, "manifest.json", json.dumps(manifest.model_dump(), ensure_ascii=False, indent=2)
+    )
 
     readme = (
         f"# Build-Artefakt: {job.title}\n\n"

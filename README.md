@@ -59,7 +59,40 @@ curl localhost:8080/manifest
 ```
 
 Ist ein Frontend-Baustein dabei, liegt unter `/` ein CDN-freies Dashboard.
-Läuft auf jedem VPS ohne `pip install` — Local-first bis ins Artefakt.
+Läuft auf jedem VPS ohne `pip install` — Local-first bis ins Artefakt. Jedes
+Artefakt bringt außerdem `Dockerfile` + `fly.toml` mit (container-/Fly-ready).
+
+### Autonom Jobs picken + alle Builds unter einer URL (v0.3)
+
+Der Agent zieht Jobs selbst aus Quellen und baut sie ohne CLI-Eingabe:
+
+```bash
+# Feed (JSON-Liste) und/oder Inbox-Verzeichnis (*.json/*.md) pollen
+arena autopilot --feed jobs.json --dir inbox/ --once     # ein Durchlauf
+arena autopilot --feed jobs.json --interval 30           # Dauerbetrieb (VPS)
+```
+
+Bereits gesehene Jobs werden dedupliziert (stabile `external_id`). Quellen:
+`FeedSource`, `DirSource`, `ImapSource` (stdlib `imaplib`, lazy). Gebaute Builds
+landen im Status `DEPLOYED` und warten auf ein Outcome — Scoren ist ein echtes
+Marktsignal, kein Automatismus:
+
+```bash
+arena ls                                  # deployte Builds + Survival-Bilanz
+arena score build:<id> --win --revenue 4200
+```
+
+Das **Gateway** serviert alle deployten Builds aus **einem** Prozess, jeder unter
+eigener URL — die Local-first-Antwort auf „eine Subdomain je Build":
+
+```bash
+arena gateway --port 8080
+#  GET /                     -> Lobby (alle Builds + Revenue-Bilanz)
+#  GET /api/builds           -> JSON
+#  GET /b/<build>/health     -> pro-Build Health
+#  GET /b/<build>/cap/<name> -> Capability dieses Builds ausführen
+#  GET /b/<build>/           -> Dashboard/Info des Builds
+```
 
 ### Lokales LLM (optional)
 
@@ -89,6 +122,7 @@ Tuning-Gewichte (`win_weight`, `loss_penalty`, `min_tag_overlap`) zentral in
 
 ## Status
 
-**v0.2** — Match-Loop + Knowledge-Graph + echter Deploy (startbare Artefakte).
-16 Tests grün, `demo.py` läuft ohne Ollama. Architektur und Roadmap in
-[`BLUEPRINT.md`](./BLUEPRINT.md).
+**v0.3** — Match-Loop + Knowledge-Graph + echter Deploy (startbare Artefakte) +
+autonomes Job-Picking (Autopilot/Quellen) + Multi-Build-Gateway + Container-ready
++ Survival-Bilanz. 25 Tests grün, `demo.py` läuft ohne Ollama. Architektur und
+Roadmap in [`BLUEPRINT.md`](./BLUEPRINT.md).

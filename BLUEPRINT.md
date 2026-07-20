@@ -100,17 +100,40 @@ Der Service exponiert `/health`, `/manifest`, `/` (Dashboard/Info) und
 läuft auf jedem VPS ohne `pip install`. Baustein→Capability-Mapping in
 `scaffold.CAP_TEMPLATES`; unbekannte Bausteine bekommen einen Platzhalter-Cap.
 
+## 6b. Autonomes Job-Picking + Gateway (v0.3)
+
+**Quellen** (`sources.py`) liefern `poll() -> List[Job]`; jeder Job trägt eine
+stabile `external_id` (Dedup) + `source`. Implementiert: `FeedSource` (JSON),
+`DirSource` (`*.json`/`*.md`-Inbox), `ImapSource` (stdlib `imaplib`, lazy).
+`derive_tags()` leitet aus Freitext grobe Tags ab (Kaltstart-Hilfe).
+
+**Autopilot** (`autopilot.py`) pollt alle Quellen, überspringt bereits gesehene
+Jobs (`seen`-Tabelle) und fährt pro neuem Job den vollen Loop bis `DEPLOYED`.
+Das **Scoren bleibt manuell/extern** — ein Outcome ist ein echtes Marktsignal,
+kein Automatismus. Eine kaputte Quelle killt den Lauf nicht.
+
+**Gateway** (`gateway.py`) serviert aus **einem** Prozess alle deployten Builds:
+`/` = Lobby (Übersicht + Revenue), `/b/<build>/…` routet in dessen Caps. Liest
+den Zustand je Anfrage frisch aus der DB; Caps werden je Artefakt gecacht. Das
+ersetzt „ein Prozess/Container je Build" für den lokalen Betrieb.
+
+**Container-ready**: jedes Artefakt bekommt `Dockerfile` + `fly.toml` +
+`.dockerignore` — zero-dep → winziges `python:3.12-slim`-Image, eine Subdomain
+je Build auf Fly möglich.
+
+**Survival-Bilanz** (`loop.revenue_summary`): Summe Revenue + Wins/Losses +
+Winrate über alle Outcomes.
+
 ## 7. Roadmap
 
 - **v0.1** — Datenmodell, Graph, Match-Loop, CLI, Demo, Tests. ✅
-- **v0.2** — echter Deploy-Schritt: `modules[]` → startbares stdlib-Artefakt
-  (`run.py` + Capabilities), Manifest, Dashboard. ✅
-- **v0.3** — Ingest-Quellen (IMAP/Webhook/Formular) → autonomes Job-Picking;
-  Container/Fly-Subdomain je Artefakt statt lokalem Prozess.
-- **v0.4** — Scheduler/„Storm" (Zeitdruck-Loop), Revenue-Ledger + Kosten
-  (VPS + Token) → echte Survival-Bilanz.
-- **v0.5** — HTTP-API + kleines Dashboard (CDN-frei, vanilla), Multi-Agent
-  (LangGraph) für parallele Builds.
+- **v0.2** — echter Deploy: `modules[]` → startbares stdlib-Artefakt. ✅
+- **v0.3** — Ingest-Quellen + Autopilot (autonomes Picking, Dedup),
+  Multi-Build-Gateway, Container-/Fly-ready, Survival-Bilanz. ✅
+- **v0.4** — Scheduler/„Storm" (Zeitdruck-Loop), Kostenseite (VPS + Token)
+  gegen Revenue → echte Netto-Survival-Bilanz; Webhook-Ingest + Auto-Score.
+- **v0.5** — echtes Container-Deploy je Build (Docker/Fly-Orchestrierung),
+  Multi-Agent (LangGraph) für parallele Builds.
 
 ## 8. VPS-Deployment (Zielbild)
 

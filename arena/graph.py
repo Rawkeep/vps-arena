@@ -31,9 +31,7 @@ def upsert_edge(conn: sqlite3.Connection, edge: Edge) -> None:
     )
 
 
-def neighbors(
-    conn: sqlite3.Connection, node_id: str, rel: str, outgoing: bool = True
-) -> List[str]:
+def neighbors(conn: sqlite3.Connection, node_id: str, rel: str, outgoing: bool = True) -> List[str]:
     if outgoing:
         rows = conn.execute(
             "SELECT dst FROM edges WHERE src = ? AND rel = ?", (node_id, rel)
@@ -58,9 +56,7 @@ def similar_jobs(conn: sqlite3.Connection, tags: List[str], settings: Settings) 
     return [j for j, c in counts.items() if c >= settings.min_tag_overlap]
 
 
-def recommend_modules(
-    conn: sqlite3.Connection, tags: List[str], settings: Settings
-) -> MatchResult:
+def recommend_modules(conn: sqlite3.Connection, tags: List[str], settings: Settings) -> MatchResult:
     """Aus gewonnenen aehnlichen Jobs die erfolgreichsten Bausteine ableiten.
 
     Pfad im Graph:  job --produced--> build --uses--> module
@@ -76,7 +72,7 @@ def recommend_modules(
             won = bool(neighbors(conn, build_id, "won", outgoing=True))
             lost = bool(neighbors(conn, build_id, "lost", outgoing=True))
             for mod in modules:
-                name = mod[len("module:"):] if mod.startswith("module:") else mod
+                name = mod[len("module:") :] if mod.startswith("module:") else mod
                 sc = agg.setdefault(name, ModuleScore(module=name, score=0.0))
                 if won:
                     sc.score += settings.win_weight

@@ -13,13 +13,23 @@ from typing import Optional
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
-    id         TEXT PRIMARY KEY,
-    title      TEXT NOT NULL,
+    id          TEXT PRIMARY KEY,
+    title       TEXT NOT NULL,
     description TEXT DEFAULT '',
-    tags       TEXT DEFAULT '[]',   -- JSON-Array
-    budget     REAL,
-    status     TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    tags        TEXT DEFAULT '[]',   -- JSON-Array
+    budget      REAL,
+    status      TEXT NOT NULL,
+    external_id TEXT,                 -- stabile ID der Quelle (Dedup)
+    source      TEXT,                 -- woher der Job kam (feed|dir|webhook|imap|cli)
+    created_at  TEXT NOT NULL
+);
+
+-- Dedup-Register: welche externen Jobs schon aufgenommen wurden.
+CREATE TABLE IF NOT EXISTS seen (
+    external_id TEXT PRIMARY KEY,
+    source      TEXT,
+    job_id      TEXT,
+    created_at  TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS builds (
@@ -83,7 +93,17 @@ def connect(db_path: str) -> sqlite3.Connection:
 
 def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Idempotente Leichtmigration: fehlende Spalten an bestehende DBs anfuegen."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "external_id" not in cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN external_id TEXT")
+    if "source" not in cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN source TEXT")
 
 
 # --- kleine JSON-Helfer, damit Listen/Dicts sauber rein/raus gehen ----------

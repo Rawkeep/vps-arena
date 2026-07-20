@@ -10,9 +10,8 @@ import threading
 import urllib.request
 import uuid
 
-import pytest
 
-from arena.models import Build, BuildStatus, Job
+from arena.models import Build, Job
 from arena.scaffold import CAP_TEMPLATES, materialize
 
 
@@ -103,6 +102,4 @@ def test_unbekannter_baustein_bekommt_platzhalter(tmp_path):
     b = _build(job, ["voellig-neuer-baustein"])
     art_dir, _ = materialize(b, job, str(tmp_path))
     assert os.path.isfile(os.path.join(art_dir, "caps", "voellig-neuer-baustein.py"))
-    py_compile.compile(
-        os.path.join(art_dir, "caps", "voellig-neuer-baustein.py"), doraise=True
-    )
+    py_compile.compile(os.path.join(art_dir, "caps", "voellig-neuer-baustein.py"), doraise=True)

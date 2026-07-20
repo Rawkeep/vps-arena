@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .agent import build_spec
 from .config import Settings
-from .db import dumps
+from .db import dumps, loads
 from .graph import recommend_modules, upsert_edge, upsert_node
 from .models import (
     Build,
@@ -42,8 +42,8 @@ def _new_id(prefix: str) -> str:
 def ingest_job(conn: sqlite3.Connection, job: Job) -> Job:
     """Job speichern + als Knoten samt Tag-Kanten in den Graph legen."""
     conn.execute(
-        "INSERT INTO jobs(id, title, description, tags, budget, status, created_at) "
-        "VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO jobs(id, title, description, tags, budget, status, "
+        "external_id, source, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
         (
             job.id,
             job.title,
@@ -51,6 +51,8 @@ def ingest_job(conn: sqlite3.Connection, job: Job) -> Job:
             dumps(job.tags),
             job.budget,
             job.status.value,
+            job.external_id,
+            job.source,
             job.created_at,
         ),
     )
@@ -77,7 +79,9 @@ def match(conn: sqlite3.Connection, job: Job, settings: Settings) -> MatchResult
 # --- 3. BUILD ----------------------------------------------------------------
 
 
-def build(conn: sqlite3.Connection, job: Job, match_result: MatchResult, settings: Settings) -> Build:
+def build(
+    conn: sqlite3.Connection, job: Job, match_result: MatchResult, settings: Settings
+) -> Build:
     """Agent erzeugt Spec + Bausteinwahl; Build + uses/produced-Kanten anlegen."""
     spec, modules = build_spec(job, match_result, settings)
     build_obj = Build(
@@ -217,8 +221,7 @@ def _set_job_status(conn: sqlite3.Connection, job_id: str, status: JobStatus) ->
 
 
 def _row_to_job(r: sqlite3.Row) -> Job:
-    from .db import loads
-
+    keys = r.keys()
     return Job(
         id=r["id"],
         title=r["title"],
@@ -226,6 +229,8 @@ def _row_to_job(r: sqlite3.Row) -> Job:
         tags=loads(r["tags"], []),  # type: ignore[arg-type]
         budget=r["budget"],
         status=r["status"],
+        external_id=r["external_id"] if "external_id" in keys else None,
+        source=r["source"] if "source" in keys else None,
         created_at=r["created_at"],
     )
 
@@ -235,6 +240,64 @@ def get_job(conn: sqlite3.Connection, job_id: str) -> Optional[Job]:
     return _row_to_job(row) if row is not None else None
 
 
+def get_build(conn: sqlite3.Connection, build_id: str) -> Optional[Build]:
+    row = conn.execute("SELECT * FROM builds WHERE id = ?", (build_id,)).fetchone()
+    if row is None:
+        return None
+    return Build(
+        id=row["id"],
+        job_id=row["job_id"],
+        spec=row["spec"],
+        modules=loads(row["modules"], []),  # type: ignore[arg-type]
+        artifact_path=row["artifact_path"],
+        status=row["status"],
+        created_at=row["created_at"],
+    )
+
+
 def list_jobs(conn: sqlite3.Connection) -> List[Job]:
     rows = conn.execute("SELECT * FROM jobs ORDER BY created_at").fetchall()
     return [_row_to_job(r) for r in rows]
+
+
+# --- Dedup (fuer autonomes Job-Picking) -------------------------------------
+
+
+def is_seen(conn: sqlite3.Connection, external_id: str) -> bool:
+    row = conn.execute("SELECT 1 FROM seen WHERE external_id = ?", (external_id,)).fetchone()
+    return row is not None
+
+
+def mark_seen(conn: sqlite3.Connection, external_id: str, source: str, job_id: str) -> None:
+    from .models import _now
+
+    conn.execute(
+        "INSERT OR IGNORE INTO seen(external_id, source, job_id, created_at) VALUES (?,?,?,?)",
+        (external_id, source, job_id, _now()),
+    )
+    conn.commit()
+
+
+# --- Revenue-/Survival-Uebersicht -------------------------------------------
+
+
+def revenue_summary(conn: sqlite3.Connection) -> Dict[str, float]:
+    """Aggregierte Bilanz ueber alle Outcomes (Vorstufe der Survival-Bilanz)."""
+    row = conn.execute(
+        "SELECT "
+        "COALESCE(SUM(revenue), 0) AS revenue, "
+        "SUM(CASE WHEN result = 'WIN' THEN 1 ELSE 0 END) AS wins, "
+        "SUM(CASE WHEN result = 'LOSS' THEN 1 ELSE 0 END) AS losses, "
+        "COUNT(*) AS scored "
+        "FROM outcomes"
+    ).fetchone()
+    wins = int(row["wins"] or 0)
+    losses = int(row["losses"] or 0)
+    scored = int(row["scored"] or 0)
+    return {
+        "revenue": float(row["revenue"] or 0.0),
+        "wins": float(wins),
+        "losses": float(losses),
+        "scored": float(scored),
+        "win_rate": float(wins / scored) if scored else 0.0,
+    }

@@ -18,12 +18,12 @@ def _now() -> str:
 
 
 class JobStatus(str, Enum):
-    OPEN = "OPEN"          # eingegangen, noch nicht bearbeitet
-    MATCHED = "MATCHED"    # Graph befragt, Empfehlung liegt vor
-    BUILT = "BUILT"        # Build erzeugt
+    OPEN = "OPEN"  # eingegangen, noch nicht bearbeitet
+    MATCHED = "MATCHED"  # Graph befragt, Empfehlung liegt vor
+    BUILT = "BUILT"  # Build erzeugt
     DEPLOYED = "DEPLOYED"  # Build ist live
-    WON = "WON"            # Match gewonnen (Revenue)
-    LOST = "LOST"          # Match verloren
+    WON = "WON"  # Match gewonnen (Revenue)
+    LOST = "LOST"  # Match verloren
 
 
 class BuildStatus(str, Enum):
@@ -49,6 +49,8 @@ class Job(BaseModel):
     tags: List[str] = Field(default_factory=list)
     budget: Optional[float] = None
     status: JobStatus = JobStatus.OPEN
+    external_id: Optional[str] = None  # stabile ID der Quelle (Dedup)
+    source: Optional[str] = None  # feed | dir | webhook | imap | cli
     created_at: str = Field(default_factory=_now)
 
 
@@ -57,7 +59,7 @@ class Build(BaseModel):
 
     id: str
     job_id: str
-    spec: str = ""                                   # was gebaut wurde (Agent-Output)
+    spec: str = ""  # was gebaut wurde (Agent-Output)
     modules: List[str] = Field(default_factory=list)  # verwendete Bausteine
     artifact_path: Optional[str] = None
     status: BuildStatus = BuildStatus.DRAFT
@@ -92,7 +94,7 @@ class Edge(BaseModel):
 
     src: str
     dst: str
-    rel: str                                    # tagged | uses | produced | won | lost
+    rel: str  # tagged | uses | produced | won | lost
     weight: float = 1.0
     props: Dict[str, str] = Field(default_factory=dict)
 
@@ -109,7 +111,7 @@ class Node(BaseModel):
 
 class ModuleScore(BaseModel):
     module: str
-    score: float          # gewichtete Evidenz aus gewonnenen aehnlichen Jobs
+    score: float  # gewichtete Evidenz aus gewonnenen aehnlichen Jobs
     wins: int = 0
     losses: int = 0
 
@@ -131,7 +133,7 @@ class ArtifactManifest(BaseModel):
     build_id: str
     job_id: str
     title: str
-    stack: str = "python-service"      # zero-dep stdlib-HTTP-Service
+    stack: str = "python-service"  # zero-dep stdlib-HTTP-Service
     entrypoint: str = "run.py"
     port: int = 8080
     modules: List[str] = Field(default_factory=list)
