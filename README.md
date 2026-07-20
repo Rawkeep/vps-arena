@@ -46,6 +46,21 @@ arena match "Neuer RAG-Job" --tags rag       # Empfehlung aus dem Graph
 arena stats
 ```
 
+### Deploy erzeugt echte Software (v0.2)
+
+`arena run` deployt den Build zu einem **startbaren, zero-dependency Artefakt**
+unter `builds/<id>/`. Jeder Baustein wird zu einer echten stdlib-Capability:
+
+```bash
+python builds/<id>/run.py          # startet den Service (http://127.0.0.1:8080)
+curl localhost:8080/health
+curl localhost:8080/cap/sqlite-store    # -> {"engine":"sqlite","rows":3,"ok":true}
+curl localhost:8080/manifest
+```
+
+Ist ein Frontend-Baustein dabei, liegt unter `/` ein CDN-freies Dashboard.
+Läuft auf jedem VPS ohne `pip install` — Local-first bis ins Artefakt.
+
 ### Lokales LLM (optional)
 
 Standard ist ein deterministischer Mock — **nichts** braucht ein LLM zum Laufen.
@@ -74,5 +89,6 @@ Tuning-Gewichte (`win_weight`, `loss_penalty`, `min_tag_overlap`) zentral in
 
 ## Status
 
-Lauffähiges Skelett (v0.1): Datenmodell, Graph, Match-Loop, CLI, Demo, Tests.
-Architektur und Roadmap in [`BLUEPRINT.md`](./BLUEPRINT.md).
+**v0.2** — Match-Loop + Knowledge-Graph + echter Deploy (startbare Artefakte).
+16 Tests grün, `demo.py` läuft ohne Ollama. Architektur und Roadmap in
+[`BLUEPRINT.md`](./BLUEPRINT.md).

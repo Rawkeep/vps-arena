@@ -114,17 +114,33 @@ def build(conn: sqlite3.Connection, job: Job, match_result: MatchResult, setting
 # --- 4. DEPLOY ---------------------------------------------------------------
 
 
-def deploy(conn: sqlite3.Connection, build_obj: Build, artifact_path: Optional[str] = None) -> Build:
-    """Stub: markiert den Build als live. Hier haengt in Prod der echte Deploy."""
-    path = artifact_path or f"builds/{build_obj.id.replace(':', '_')}"
+def deploy(
+    conn: sqlite3.Connection,
+    build_obj: Build,
+    settings: Settings,
+    out_root: Optional[str] = None,
+) -> Build:
+    """Materialisiert ein echtes, startbares Artefakt (v0.2) und markiert live.
+
+    Aus `build_obj.modules` entsteht ein Verzeichnis mit lauffaehigem Code
+    (`run.py` + Capabilities). Der Artefakt-Pfad wird persistiert.
+    """
+    from .scaffold import materialize
+
+    job = get_job(conn, build_obj.job_id)
+    if job is None:
+        raise ValueError(f"Job {build_obj.job_id} nicht gefunden")
+    root = out_root or settings.artifacts_dir
+    art_dir, _manifest = materialize(build_obj, job, root)
+
     conn.execute(
         "UPDATE builds SET status = ?, artifact_path = ? WHERE id = ?",
-        (BuildStatus.DEPLOYED.value, path, build_obj.id),
+        (BuildStatus.DEPLOYED.value, art_dir, build_obj.id),
     )
     _set_job_status(conn, build_obj.job_id, JobStatus.DEPLOYED)
     conn.commit()
     build_obj.status = BuildStatus.DEPLOYED
-    build_obj.artifact_path = path
+    build_obj.artifact_path = art_dir
     return build_obj
 
 
@@ -190,7 +206,7 @@ def run_match(
     ingest_job(conn, job)
     m = match(conn, job, settings)
     b = build(conn, job, m, settings)
-    deploy(conn, b)
+    deploy(conn, b, settings)
     if result is not None:
         score(conn, b, result, revenue)
     return b
@@ -200,21 +216,25 @@ def _set_job_status(conn: sqlite3.Connection, job_id: str, status: JobStatus) ->
     conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status.value, job_id))
 
 
-def list_jobs(conn: sqlite3.Connection) -> List[Job]:
+def _row_to_job(r: sqlite3.Row) -> Job:
     from .db import loads
 
+    return Job(
+        id=r["id"],
+        title=r["title"],
+        description=r["description"],
+        tags=loads(r["tags"], []),  # type: ignore[arg-type]
+        budget=r["budget"],
+        status=r["status"],
+        created_at=r["created_at"],
+    )
+
+
+def get_job(conn: sqlite3.Connection, job_id: str) -> Optional[Job]:
+    row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    return _row_to_job(row) if row is not None else None
+
+
+def list_jobs(conn: sqlite3.Connection) -> List[Job]:
     rows = conn.execute("SELECT * FROM jobs ORDER BY created_at").fetchall()
-    out: List[Job] = []
-    for r in rows:
-        out.append(
-            Job(
-                id=r["id"],
-                title=r["title"],
-                description=r["description"],
-                tags=loads(r["tags"], []),  # type: ignore[arg-type]
-                budget=r["budget"],
-                status=r["status"],
-                created_at=r["created_at"],
-            )
-        )
-    return out
+    return [_row_to_job(r) for r in rows]

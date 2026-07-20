@@ -13,10 +13,10 @@ from arena.models import BuildStatus, Job, JobStatus, Result
 
 
 @pytest.fixture()
-def ctx():
+def ctx(tmp_path):
     c = connect(":memory:")
     init_schema(c)
-    return c, Settings(db_path=":memory:")
+    return c, Settings(db_path=":memory:", artifacts_dir=str(tmp_path / "builds"))
 
 
 def _job(tags):
@@ -33,7 +33,7 @@ def test_voller_loop_setzt_status(ctx):
     assert b.status == BuildStatus.DRAFT
     assert "sqlite-store" in b.modules  # Local-first-Basis immer dabei
 
-    b = deploy(conn, b)
+    b = deploy(conn, b, settings)
     assert b.status == BuildStatus.DEPLOYED and b.artifact_path
 
     out = score(conn, b, Result.WIN, revenue=999.0)
@@ -48,10 +48,19 @@ def test_ingest_persistiert_tags(ctx):
     assert stored.tags == ["rag", "dsgvo"]
 
 
+def test_sqlite_store_ueberlebt_limit(ctx):
+    # Viele Tags -> mehr Kandidaten als limit; Local-first-Basis darf nicht wegfallen.
+    conn, settings = ctx
+    job = ingest_job(conn, _job(["rag", "dashboard", "api", "auth", "export"]))
+    m = match(conn, job, settings)
+    b = build(conn, job, m, settings)
+    assert "sqlite-store" in b.modules
+
+
 def test_loss_setzt_job_auf_lost(ctx):
     conn, settings = ctx
     job = ingest_job(conn, _job(["dashboard"]))
     m = match(conn, job, settings)
-    b = deploy(conn, build(conn, job, m, settings))
+    b = deploy(conn, build(conn, job, m, settings), settings)
     score(conn, b, Result.LOSS)
     assert list_jobs(conn)[0].status == JobStatus.LOST

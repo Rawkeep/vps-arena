@@ -81,12 +81,32 @@ Rawkeep-Ökosystems — hier sollen echte Portierungen andocken:
 | `data-firewall` | `RAQ` (DLP-light) |
 | `pdf-export` | `sap-agent` / `orgmind` |
 
+## 6a. Deploy = echtes Artefakt (v0.2)
+
+`deploy()` erzeugt kein Stub mehr, sondern **materialisiert** aus `build.modules`
+ein startbares Verzeichnis (`scaffold.materialize`):
+
+```
+builds/<build_id>/
+  run.py            # zero-dep stdlib-HTTP-Service (startbar: python run.py)
+  manifest.json     # ArtifactManifest (build, job, stack, modules, files)
+  README.md         # was gebaut wurde + Startanleitung
+  caps/<modul>.py   # je Baustein eine echte Capability: NAME/SUMMARY/run()->dict
+  static/index.html # nur wenn ein Frontend-Baustein (react-dashboard) dabei ist
+```
+
+Der Service exponiert `/health`, `/manifest`, `/` (Dashboard/Info) und
+`/cap/<name>` (führt die Capability aus). **Bewusst nur stdlib im Artefakt** —
+läuft auf jedem VPS ohne `pip install`. Baustein→Capability-Mapping in
+`scaffold.CAP_TEMPLATES`; unbekannte Bausteine bekommen einen Platzhalter-Cap.
+
 ## 7. Roadmap
 
-- **v0.1 (jetzt)** — Datenmodell, Graph, Match-Loop, CLI, Demo, Tests. ✅
-- **v0.2** — echter Deploy-Schritt (Container/Fly-Subdomain je Build);
-  Artefakt-Templating aus `modules[]`.
-- **v0.3** — Ingest-Quellen (IMAP/Webhook/Formular) → autonomes Job-Picking.
+- **v0.1** — Datenmodell, Graph, Match-Loop, CLI, Demo, Tests. ✅
+- **v0.2** — echter Deploy-Schritt: `modules[]` → startbares stdlib-Artefakt
+  (`run.py` + Capabilities), Manifest, Dashboard. ✅
+- **v0.3** — Ingest-Quellen (IMAP/Webhook/Formular) → autonomes Job-Picking;
+  Container/Fly-Subdomain je Artefakt statt lokalem Prozess.
 - **v0.4** — Scheduler/„Storm" (Zeitdruck-Loop), Revenue-Ledger + Kosten
   (VPS + Token) → echte Survival-Bilanz.
 - **v0.5** — HTTP-API + kleines Dashboard (CDN-frei, vanilla), Multi-Agent

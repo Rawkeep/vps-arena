@@ -120,3 +120,20 @@ class MatchResult(BaseModel):
     job_id: str
     recommended_modules: List[ModuleScore] = Field(default_factory=list)
     similar_jobs: List[str] = Field(default_factory=list)
+
+
+# --- Artefakt (v0.2: Deploy erzeugt echte, startbare Dateien) ---------------
+
+
+class ArtifactManifest(BaseModel):
+    """Beschreibt das materialisierte, lauffaehige Artefakt eines Builds."""
+
+    build_id: str
+    job_id: str
+    title: str
+    stack: str = "python-service"      # zero-dep stdlib-HTTP-Service
+    entrypoint: str = "run.py"
+    port: int = 8080
+    modules: List[str] = Field(default_factory=list)
+    files: List[str] = Field(default_factory=list)
+    created_at: str = Field(default_factory=_now)

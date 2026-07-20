@@ -85,7 +85,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             result = Result.LOSS
         job = _job(args.title, _tags(args.tags), args.desc)
         b = run_match(conn, job, settings, result=result, revenue=args.revenue)
-        print(f"Build {b.id}\n  Spec:    {b.spec}\n  Module:  {', '.join(b.modules)}")
+        print(f"Build {b.id}\n  Spec:     {b.spec}\n  Module:   {', '.join(b.modules)}")
+        print(f"  Artefakt: {b.artifact_path}")
+        print(f"  Starten:  python {b.artifact_path}/run.py   (dann http://127.0.0.1:8080)")
         if result:
             print(f"  Ergebnis: {result.value}  Revenue: {args.revenue:.2f}")
         return 0

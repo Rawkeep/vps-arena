@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import uuid
 
 from arena.config import Settings
@@ -19,7 +21,8 @@ def _job(title: str, tags: list, desc: str = "") -> Job:
 
 
 def main() -> None:
-    settings = Settings(db_path=":memory:")  # fluechtige DB fuer die Demo
+    art_root = tempfile.mkdtemp(prefix="arena-demo-")
+    settings = Settings(db_path=":memory:", artifacts_dir=art_root)  # fluechtig
     conn = connect(settings.db_path)
     init_schema(conn)
 
@@ -45,12 +48,23 @@ def main() -> None:
     for ms in m.recommended_modules:
         print(f"     {ms.module:<16} score={ms.score:+.1f}  (W{ms.wins}/L{ms.losses})")
 
+    # Runde 3: aus dem empfohlenen Build wird ein ECHTES, startbares Artefakt.
+    print("\n[Runde 3] Deploy: der Build wird zu lauffaehiger Software (v0.2)")
+    b = run_match(conn, _job("RAG-Service fuer Kunde", ["rag", "api"]),
+                  settings, result=Result.WIN, revenue=2800.0)
+    print(f"   Artefakt: {b.artifact_path}")
+    for root, _dirs, files in os.walk(b.artifact_path):
+        for f in sorted(files):
+            rel = os.path.relpath(os.path.join(root, f), b.artifact_path)
+            print(f"     - {rel}")
+    print(f"   Starten:  python {b.artifact_path}/run.py  ->  http://127.0.0.1:8080")
+
     print("\n[Kennzahlen]")
     for k, v in stats(conn).items():
         print(f"   {k:<10} {v}")
 
     print("\nFazit: Ohne jede Cloud, ohne LLM-Zwang — der Graph macht den naechsten")
-    print("Build datengetrieben besser. Genau das ist der 'XP/Loot'-Mechanismus.")
+    print("Build datengetrieben besser, und Deploy erzeugt echte, startbare Software.")
 
 
 if __name__ == "__main__":

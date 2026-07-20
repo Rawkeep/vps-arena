@@ -51,10 +51,12 @@ def choose_modules(job: Job, match: MatchResult, limit: int = 4) -> List[str]:
             if mod not in chosen:
                 chosen.append(mod)
 
+    chosen = chosen[:limit]
+    # Local-first-Basis muss das limit-Slicing ueberleben — notfalls letzten Platz opfern.
     if "sqlite-store" not in chosen:
-        chosen.append("sqlite-store")  # Local-first-Basis immer dabei
+        chosen = chosen[: max(0, limit - 1)] + ["sqlite-store"]
 
-    return chosen[:limit]
+    return chosen
 
 
 def _mock_spec(job: Job, modules: List[str]) -> str:
