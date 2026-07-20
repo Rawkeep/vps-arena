@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vps-arena"
+version = "0.1.0"
+description = "Always-on AI-Agent auf VPS: generiert Software on-demand als Builds, die um Jobs & Revenue antreten. SQLite + Knowledge-Graph als Gedaechtnis."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+dependencies = [
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+]
+
+[project.scripts]
+arena = "arena.cli:main"
+
+[tool.setuptools]
+packages = ["arena"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
