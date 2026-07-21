@@ -120,6 +120,11 @@ Prosa, es entscheidet nichts Hartes.
 Tuning-Gewichte (`win_weight`, `loss_penalty`, `min_tag_overlap`) zentral in
 `arena/config.py`.
 
+## Auf einem eigenen VPS betreiben
+
+Schritt-für-Schritt vom leeren Server bis zur laufenden Arena (Hetzner-Beispiel,
+systemd-Dienste, optional Ollama/HTTPS/Backup): **[`SETUP.md`](./SETUP.md)**.
+
 ## Status
 
 **v0.3** — Match-Loop + Knowledge-Graph + echter Deploy (startbare Artefakte) +
