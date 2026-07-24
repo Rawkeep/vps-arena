@@ -31,6 +31,16 @@ DSGVO-bewusst, Ollama statt Cloud-LLM.
    ↑______________ nächster Match, schlauer als vorher ______________|
 ```
 
+## Tech-Stack
+
+- **Python ≥ 3.9**, einzige Kern-Abhängigkeit: **pydantic** (`models.py` ist der
+  Vertrag für Job/Build/Outcome/Node/Edge).
+- **SQLite** (stdlib `sqlite3`, WAL-Modus) für Entitäten *und* Graph — eine Datei.
+- **Generierte Artefakte sind zero-dependency** (nur Python-stdlib: `http.server`,
+  `sqlite3`, `hmac`, `urllib` …) — laufen ohne `pip install` auf jedem VPS.
+- **Ollama** optional als lokales LLM (stdlib `urllib`, kein SDK) — nie zwingend.
+- **pytest**, **ruff**, **mypy** für Entwicklung (`.[dev]`-Extra).
+
 ## Quickstart
 
 ```bash
@@ -40,7 +50,8 @@ python demo.py              # End-to-End ohne Ollama — zeigt das Lernen
 python -m pytest -q         # Testsuite (Regressionsschutz fürs Kern-IP)
 
 # CLI
-arena init
+arena init                                   # DB + Schema anlegen
+arena ingest "RAG-Auftrag Kanzlei" --tags rag,dsgvo   # nur aufnehmen (ohne Build)
 arena run "RAG-Auftrag Kanzlei" --tags rag,dsgvo --win --revenue 4200
 arena match "Neuer RAG-Job" --tags rag       # Empfehlung aus dem Graph
 arena stats
@@ -113,6 +124,7 @@ Prosa, es entscheidet nichts Hartes.
 | Variable | Default | Zweck |
 |---|---|---|
 | `ARENA_DB_PATH` | `data/arena.db` | Ablage der SQLite-DB |
+| `ARENA_ARTIFACTS_DIR` | `builds` | Wurzelverzeichnis für deployte Artefakte |
 | `ARENA_USE_OLLAMA` | `0` | LLM an/aus |
 | `ARENA_OLLAMA_URL` | `http://localhost:11434` | Ollama-Endpunkt |
 | `ARENA_OLLAMA_MODEL` | `llama3.2:3b` | Modell |
