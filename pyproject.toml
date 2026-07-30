@@ -31,6 +31,9 @@ line-length = 100
 target-version = "py39"
 
 [tool.mypy]
+# Ohne dieses Ziel bricht ein blosses `mypy` mit "Missing target module" ab —
+# und damit auch der Typ-Schritt in der CI.
+packages = ["arena"]
 # Laufzeit-Code bleibt 3.9-kompatibel; mypy selbst braucht >=3.10 als Target.
 python_version = "3.10"
 plugins = ["pydantic.mypy"]
